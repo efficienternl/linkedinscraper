@@ -16,7 +16,7 @@ export default function AdminNav() {
     <header className="border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
         <Link href="/" className="flex items-center">
-          <Image src="/logo.png" alt="Efficienter" width={140} height={90} className="h-8 w-auto" priority />
+          <Image src="/logo.png" alt="Efficienter" width={440} height={100} className="h-9 w-auto" priority />
         </Link>
         <nav className="flex items-center gap-1">
           {tabs.map((t) => (
