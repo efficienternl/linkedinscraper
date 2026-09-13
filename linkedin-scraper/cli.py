@@ -290,12 +290,12 @@ def _read_url_file(file_path: str) -> list:
 
 
 @cli.command()
-@click.option("--keywords", required=True, help="Zoekterm (e.g. 'transport').")
+@click.option("--keywords", multiple=True, required=True, help="Zoekterm(en) - gebruik meerdere keren voor meerdere keywords (e.g. --keywords 'transport' --keywords 'logistics').")
 @click.option("--job-title", default=None, help="Specifieke functietitel (e.g. 'operations manager').")
 @click.option("--seniority", default=None, type=click.Choice(["manager", "director", "executive"]), help="Seniority level: manager, director, of executive (en hoger).")
 @click.option("--manager-type", default=None, help="Type manager (e.g. 'operations', 'logistics', 'supply chain').")
 @click.option("--location", default=None, help="Locatie filter (e.g. 'Netherlands').")
-@click.option("--limit", default=100, show_default=True, help="Max. aantal profielen.")
+@click.option("--limit", default=100, show_default=True, help="Max. aantal profielen per keyword.")
 @click.option("--out", required=True, type=click.Path(), help="JSONL output bestand.")
 @click.option("--session-file", default=SESSION_FILE, show_default=True)
 @click.option("--headless/--no-headless", default=HEADLESS, show_default=True)
@@ -304,7 +304,7 @@ def _read_url_file(file_path: str) -> list:
 @click.option("--max-consecutive-errors", default=3, show_default=True)
 @click.option("--apify-token", default=None, help="Apify API token (of uit .env: APIFY_TOKEN).")
 def search(
-    keywords: str,
+    keywords: tuple,
     job_title: str,
     seniority: str,
     manager_type: str,
@@ -321,7 +321,7 @@ def search(
     """Zoek via Apify en scrape alle profielen."""
     asyncio.run(
         _search_via_apify(
-            keywords,
+            list(keywords),  # Convert tuple to list
             job_title,
             seniority,
             manager_type,
@@ -338,7 +338,7 @@ def search(
 
 
 async def _search_via_apify(
-    keywords: str,
+    keywords: list,
     job_title: str,
     seniority: str,
     manager_type: str,

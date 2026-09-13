@@ -13,7 +13,7 @@ class ApifyClient:
 
     def search_profiles(
         self,
-        keywords: str,
+        keywords,
         location: str = None,
         job_title: str = None,
         seniority: str = None,
@@ -26,22 +26,34 @@ class ApifyClient:
         Returns list of profile URLs matching search criteria.
 
         Args:
-            keywords: Search term (e.g., "transport")
+            keywords: Search term(s) - string or list of strings
             location: Location filter
             job_title: Specific job title
             seniority: "manager", "director", "executive" (includes higher levels)
             manager_type: Type of manager (e.g., "operations", "logistics", "supply chain")
-            limit: Max results
+            limit: Max results per keyword
         """
+        # Handle both single string and list of keywords
+        if isinstance(keywords, str):
+            keywords_list = [keywords]
+        else:
+            keywords_list = keywords if isinstance(keywords, list) else [keywords]
+
         # Use the LinkedIn Search Results Scraper actor
         actor_id = "nwua9Oy5YrADL7ZAj"  # LinkedIn Search Results Scraper
 
+        # Build search URLs for all keywords
+        search_urls = [
+            self._build_search_url(kw, location, job_title, seniority, manager_type)
+            for kw in keywords_list
+        ]
+
         input_data = {
-            "searchUrls": [self._build_search_url(keywords, location, job_title, seniority, manager_type)],
-            "maxResults": min(limit, 1000),  # Apify limit
+            "searchUrls": search_urls,
+            "maxResults": min(limit, 1000),  # Apify limit per URL
         }
 
-        click.echo(f"🔍 Starting Apify search: {keywords}", err=True)
+        click.echo(f"🔍 Starting Apify search: {', '.join(keywords_list)}", err=True)
         if location:
             click.echo(f"   Location: {location}", err=True)
         if job_title:
