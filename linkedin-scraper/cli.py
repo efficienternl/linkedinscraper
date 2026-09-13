@@ -296,7 +296,8 @@ def _read_url_file(file_path: str) -> list:
 @click.option("--manager-type", default=None, help="Type manager (e.g. 'operations', 'logistics', 'supply chain').")
 @click.option("--location", default=None, help="Locatie filter (e.g. 'Netherlands').")
 @click.option("--limit", default=100, show_default=True, help="Max. aantal profielen per keyword.")
-@click.option("--out", required=True, type=click.Path(), help="JSONL output bestand.")
+@click.option("--out", required=True, type=click.Path(), help="Output bestand (JSONL of CSV).")
+@click.option("--format", type=click.Choice(["jsonl", "csv"]), default="jsonl", show_default=True, help="Output format.")
 @click.option("--session-file", default=SESSION_FILE, show_default=True)
 @click.option("--headless/--no-headless", default=HEADLESS, show_default=True)
 @click.option("--delay-min", default=5.0, show_default=True, help="Min. pauze tussen scrapes (seconden).")
@@ -311,6 +312,7 @@ def search(
     location: str,
     limit: int,
     out: str,
+    format: str,
     session_file: str,
     headless: bool,
     delay_min: float,
@@ -328,6 +330,7 @@ def search(
             location,
             limit,
             out,
+            format,
             session_file,
             headless,
             (delay_min, delay_max),
@@ -345,6 +348,7 @@ async def _search_via_apify(
     location: str,
     limit: int,
     out: str,
+    format: str,
     session_file: str,
     headless: bool,
     delay_range: tuple,
@@ -395,14 +399,24 @@ async def _search_via_apify(
     try:
         async with BrowserManager(headless=headless) as browser:
             await browser.load_session(session_file)
+            # Scrape to JSONL first
+            jsonl_out = out if out.endswith('.jsonl') else out.replace('.csv', '.jsonl')
             await scrape_urls_to_jsonl(
                 profile_urls,
                 browser.page,
                 PersonScraper,
-                out,
+                jsonl_out,
                 delay_range=delay_range,
                 max_consecutive_errors=max_consecutive_errors,
             )
+
+            # Convert to desired format if needed
+            if format.lower() == 'csv' and not out.endswith('.jsonl'):
+                from linkedin_cli.csv_export import jsonl_to_csv
+                click.echo(f"\n📊 Converting to CSV...", err=True)
+                jsonl_to_csv(jsonl_out, out)
+                click.echo(f"✓ CSV saved: {out}", err=True)
+                Path(jsonl_out).unlink()  # Remove temp JSONL
     except AuthenticationError:
         click.echo("✗ Sessie verlopen of ongeldig.", err=True)
         click.echo("Run: python cli.py login", err=True)

@@ -1,6 +1,7 @@
 """JSONL file operations for resumable scraping."""
 import json
 from pathlib import Path
+from .csv_export import append_json_as_csv
 
 
 def normalize_url(url: str) -> str:
@@ -47,3 +48,16 @@ def append_jsonl(file_path: str, record: dict) -> None:
 def print_json(record: dict) -> None:
     """Pretty-print a single JSON object to stdout."""
     print(json.dumps(record, indent=2, ensure_ascii=False))
+
+
+def convert_to_format(input_file: str, output_file: str, format: str) -> None:
+    """Convert JSONL to specified format."""
+    if format.lower() == "csv":
+        from .csv_export import jsonl_to_csv
+        jsonl_to_csv(input_file, output_file)
+    elif format.lower() == "jsonl":
+        # No conversion needed
+        import shutil
+        shutil.copy(input_file, output_file)
+    else:
+        raise ValueError(f"Unsupported format: {format}")
