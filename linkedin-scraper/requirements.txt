@@ -2,3 +2,4 @@ linkedin_scraper==3.1.2
 click==8.1.8
 python-dotenv==1.2.1
 requests==2.32.5
+streamlit==1.40.2
