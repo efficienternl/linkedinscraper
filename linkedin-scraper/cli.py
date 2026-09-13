@@ -291,7 +291,9 @@ def _read_url_file(file_path: str) -> list:
 
 @cli.command()
 @click.option("--keywords", required=True, help="Zoekterm (e.g. 'transport').")
-@click.option("--job-title", default=None, help="Filter op functietitel (e.g. 'manager').")
+@click.option("--job-title", default=None, help="Specifieke functietitel (e.g. 'operations manager').")
+@click.option("--seniority", default=None, type=click.Choice(["manager", "director", "executive"]), help="Seniority level: manager, director, of executive (en hoger).")
+@click.option("--manager-type", default=None, help="Type manager (e.g. 'operations', 'logistics', 'supply chain').")
 @click.option("--location", default=None, help="Locatie filter (e.g. 'Netherlands').")
 @click.option("--limit", default=100, show_default=True, help="Max. aantal profielen.")
 @click.option("--out", required=True, type=click.Path(), help="JSONL output bestand.")
@@ -304,6 +306,8 @@ def _read_url_file(file_path: str) -> list:
 def search(
     keywords: str,
     job_title: str,
+    seniority: str,
+    manager_type: str,
     location: str,
     limit: int,
     out: str,
@@ -319,6 +323,8 @@ def search(
         _search_via_apify(
             keywords,
             job_title,
+            seniority,
+            manager_type,
             location,
             limit,
             out,
@@ -334,6 +340,8 @@ def search(
 async def _search_via_apify(
     keywords: str,
     job_title: str,
+    seniority: str,
+    manager_type: str,
     location: str,
     limit: int,
     out: str,
@@ -360,6 +368,8 @@ async def _search_via_apify(
             keywords=keywords,
             location=location,
             job_title=job_title,
+            seniority=seniority,
+            manager_type=manager_type,
             limit=limit,
         )
     except Exception as e:

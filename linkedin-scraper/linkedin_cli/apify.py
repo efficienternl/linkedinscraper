@@ -16,18 +16,28 @@ class ApifyClient:
         keywords: str,
         location: str = None,
         job_title: str = None,
+        seniority: str = None,
+        manager_type: str = None,
         limit: int = 100,
     ) -> list:
         """
         Search LinkedIn profiles via Apify.
 
         Returns list of profile URLs matching search criteria.
+
+        Args:
+            keywords: Search term (e.g., "transport")
+            location: Location filter
+            job_title: Specific job title
+            seniority: "manager", "director", "executive" (includes higher levels)
+            manager_type: Type of manager (e.g., "operations", "logistics", "supply chain")
+            limit: Max results
         """
         # Use the LinkedIn Search Results Scraper actor
         actor_id = "nwua9Oy5YrADL7ZAj"  # LinkedIn Search Results Scraper
 
         input_data = {
-            "searchUrls": [self._build_search_url(keywords, location, job_title)],
+            "searchUrls": [self._build_search_url(keywords, location, job_title, seniority, manager_type)],
             "maxResults": min(limit, 1000),  # Apify limit
         }
 
@@ -36,6 +46,10 @@ class ApifyClient:
             click.echo(f"   Location: {location}", err=True)
         if job_title:
             click.echo(f"   Job title: {job_title}", err=True)
+        if seniority:
+            click.echo(f"   Seniority: {seniority}", err=True)
+        if manager_type:
+            click.echo(f"   Manager type: {manager_type}", err=True)
 
         # Call actor
         run_id = self._run_actor(actor_id, input_data)
@@ -50,12 +64,36 @@ class ApifyClient:
 
         return profile_urls
 
-    def _build_search_url(self, keywords: str, location: str = None, job_title: str = None) -> str:
+    def _build_search_url(
+        self,
+        keywords: str,
+        location: str = None,
+        job_title: str = None,
+        seniority: str = None,
+        manager_type: str = None,
+    ) -> str:
         """Build LinkedIn search URL with filters."""
         search_parts = [keywords]
 
+        # Add seniority levels (manager or higher)
+        if seniority:
+            seniority = seniority.lower()
+            if seniority == "manager":
+                search_parts.append('title:"manager"')
+            elif seniority == "director":
+                search_parts.append('title:("manager" OR "director" OR "head of" OR "vp" OR "vice president")')
+            elif seniority == "executive":
+                search_parts.append('title:("manager" OR "director" OR "head of" OR "vp" OR "vice president" OR "ceo" OR "cto" OR "cfo" OR "coo" OR "owner" OR "founder")')
+
+        # Add specific job title
         if job_title:
-            search_parts.append(f'title:"{job_title}"')
+            if manager_type:
+                search_parts.append(f'title:("{manager_type} manager" OR "{manager_type}")')
+            else:
+                search_parts.append(f'title:"{job_title}"')
+        elif manager_type:
+            # Just manager type without specific title
+            search_parts.append(f'title:"{manager_type} manager"')
 
         query = " ".join(search_parts)
         url = f"https://www.linkedin.com/search/results/people/?keywords={query}"
