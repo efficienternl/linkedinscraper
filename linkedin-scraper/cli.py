@@ -291,7 +291,7 @@ def _read_url_file(file_path: str) -> list:
 
 @cli.command()
 @click.option("--keywords", multiple=True, required=True, help="Zoekterm(en) - gebruik meerdere keren voor meerdere keywords (e.g. --keywords 'transport' --keywords 'logistics').")
-@click.option("--job-title", default=None, help="Specifieke functietitel (e.g. 'operations manager').")
+@click.option("--job-title", multiple=True, default=(), help="Functietitel(s) - gebruik meerdere keren (e.g. --job-title 'manager' --job-title 'director').")
 @click.option("--seniority", default=None, type=click.Choice(["manager", "director", "executive"]), help="Seniority level: manager, director, of executive (en hoger).")
 @click.option("--manager-type", default=None, help="Type manager (e.g. 'operations', 'logistics', 'supply chain').")
 @click.option("--location", default=None, help="Locatie filter (e.g. 'Netherlands').")
@@ -305,7 +305,7 @@ def _read_url_file(file_path: str) -> list:
 @click.option("--apify-token", default=None, help="Apify API token (of uit .env: APIFY_TOKEN).")
 def search(
     keywords: tuple,
-    job_title: str,
+    job_title: tuple,
     seniority: str,
     manager_type: str,
     location: str,
@@ -322,7 +322,7 @@ def search(
     asyncio.run(
         _search_via_apify(
             list(keywords),  # Convert tuple to list
-            job_title,
+            list(job_title) if job_title else None,  # Convert to list or None
             seniority,
             manager_type,
             location,
@@ -339,7 +339,7 @@ def search(
 
 async def _search_via_apify(
     keywords: list,
-    job_title: str,
+    job_title: list,
     seniority: str,
     manager_type: str,
     location: str,
@@ -361,13 +361,16 @@ async def _search_via_apify(
         click.echo("Gebruik: --apify-token <token> of zet APIFY_TOKEN in .env", err=True)
         raise SystemExit(1)
 
-    # Search via Apify
+    # Handle multiple job titles or single manager_type
+    job_titles_to_search = job_title if job_title else (None,)
+
+    # Search via Apify (combines all keywords + all job titles)
     try:
         apify = ApifyClient(token)
         profile_urls = apify.search_profiles(
             keywords=keywords,
             location=location,
-            job_title=job_title,
+            job_title=job_titles_to_search,  # Can be list or None
             seniority=seniority,
             manager_type=manager_type,
             limit=limit,

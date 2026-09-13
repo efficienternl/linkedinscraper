@@ -15,7 +15,7 @@ class ApifyClient:
         self,
         keywords,
         location: str = None,
-        job_title: str = None,
+        job_title = None,
         seniority: str = None,
         manager_type: str = None,
         limit: int = 100,
@@ -28,7 +28,7 @@ class ApifyClient:
         Args:
             keywords: Search term(s) - string or list of strings
             location: Location filter
-            job_title: Specific job title
+            job_title: Specific job title(s) - string, list, or tuple
             seniority: "manager", "director", "executive" (includes higher levels)
             manager_type: Type of manager (e.g., "operations", "logistics", "supply chain")
             limit: Max results per keyword
@@ -39,14 +39,26 @@ class ApifyClient:
         else:
             keywords_list = keywords if isinstance(keywords, list) else [keywords]
 
+        # Handle job titles (can be string, list, or tuple)
+        if job_title is None:
+            job_titles_list = [None]
+        elif isinstance(job_title, str):
+            job_titles_list = [job_title]
+        elif isinstance(job_title, (list, tuple)):
+            job_titles_list = list(job_title) if job_title else [None]
+        else:
+            job_titles_list = [None]
+
         # Use the LinkedIn Search Results Scraper actor
         actor_id = "nwua9Oy5YrADL7ZAj"  # LinkedIn Search Results Scraper
 
-        # Build search URLs for all keywords
-        search_urls = [
-            self._build_search_url(kw, location, job_title, seniority, manager_type)
-            for kw in keywords_list
-        ]
+        # Build search URLs for all combinations of keywords + job titles
+        search_urls = []
+        for kw in keywords_list:
+            for title in job_titles_list:
+                search_urls.append(
+                    self._build_search_url(kw, location, title, seniority, manager_type)
+                )
 
         input_data = {
             "searchUrls": search_urls,
