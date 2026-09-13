@@ -17,6 +17,7 @@ from linkedin_scraper.core.auth import wait_for_manual_login
 from linkedin_cli.config import SESSION_FILE, OUTPUT_DIR, HEADLESS
 from linkedin_cli.jsonl_store import normalize_url, load_existing_keys, append_jsonl, print_json
 from linkedin_cli.bulk import scrape_urls_to_jsonl
+from linkedin_cli.apify import ApifyClient
 
 
 @click.group()
@@ -286,6 +287,116 @@ def _read_url_file(file_path: str) -> list:
         click.echo(f"✗ Fout bij lezen bestand: {e}", err=True)
         raise SystemExit(1)
     return urls
+
+
+@cli.command()
+@click.option("--keywords", required=True, help="Zoekterm (e.g. 'transport').")
+@click.option("--job-title", default=None, help="Filter op functietitel (e.g. 'manager').")
+@click.option("--location", default=None, help="Locatie filter (e.g. 'Netherlands').")
+@click.option("--limit", default=100, show_default=True, help="Max. aantal profielen.")
+@click.option("--out", required=True, type=click.Path(), help="JSONL output bestand.")
+@click.option("--session-file", default=SESSION_FILE, show_default=True)
+@click.option("--headless/--no-headless", default=HEADLESS, show_default=True)
+@click.option("--delay-min", default=5.0, show_default=True, help="Min. pauze tussen scrapes (seconden).")
+@click.option("--delay-max", default=15.0, show_default=True, help="Max. pauze tussen scrapes (seconden).")
+@click.option("--max-consecutive-errors", default=3, show_default=True)
+@click.option("--apify-token", default=None, help="Apify API token (of uit .env: APIFY_TOKEN).")
+def search(
+    keywords: str,
+    job_title: str,
+    location: str,
+    limit: int,
+    out: str,
+    session_file: str,
+    headless: bool,
+    delay_min: float,
+    delay_max: float,
+    max_consecutive_errors: int,
+    apify_token: str,
+) -> None:
+    """Zoek via Apify en scrape alle profielen."""
+    asyncio.run(
+        _search_via_apify(
+            keywords,
+            job_title,
+            location,
+            limit,
+            out,
+            session_file,
+            headless,
+            (delay_min, delay_max),
+            max_consecutive_errors,
+            apify_token,
+        )
+    )
+
+
+async def _search_via_apify(
+    keywords: str,
+    job_title: str,
+    location: str,
+    limit: int,
+    out: str,
+    session_file: str,
+    headless: bool,
+    delay_range: tuple,
+    max_consecutive_errors: int,
+    apify_token: str,
+) -> None:
+    """Search via Apify and scrape results."""
+    import os
+
+    # Get token from param or env
+    token = apify_token or os.getenv("APIFY_TOKEN")
+    if not token:
+        click.echo("✗ APIFY_TOKEN niet gevonden.", err=True)
+        click.echo("Gebruik: --apify-token <token> of zet APIFY_TOKEN in .env", err=True)
+        raise SystemExit(1)
+
+    # Search via Apify
+    try:
+        apify = ApifyClient(token)
+        profile_urls = apify.search_profiles(
+            keywords=keywords,
+            location=location,
+            job_title=job_title,
+            limit=limit,
+        )
+    except Exception as e:
+        click.echo(f"✗ Apify search mislukt: {e}", err=True)
+        raise SystemExit(1)
+
+    if not profile_urls:
+        click.echo("✗ Geen profielen gevonden.", err=True)
+        raise SystemExit(1)
+
+    click.echo("", err=True)
+
+    # Scrape all profiles
+    session_path = Path(session_file)
+    if not session_path.exists():
+        click.echo(f"✗ Geen sessie gevonden: {session_file}", err=True)
+        click.echo("Run eerst: python cli.py login", err=True)
+        raise SystemExit(1)
+
+    try:
+        async with BrowserManager(headless=headless) as browser:
+            await browser.load_session(session_file)
+            await scrape_urls_to_jsonl(
+                profile_urls,
+                browser.page,
+                PersonScraper,
+                out,
+                delay_range=delay_range,
+                max_consecutive_errors=max_consecutive_errors,
+            )
+    except AuthenticationError:
+        click.echo("✗ Sessie verlopen of ongeldig.", err=True)
+        click.echo("Run: python cli.py login", err=True)
+        raise SystemExit(1)
+    except Exception as e:
+        click.echo(f"✗ Fout: {e}", err=True)
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

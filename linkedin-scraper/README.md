@@ -38,6 +38,29 @@ Dit opent een echt browservenster. Voer je LinkedIn-inloggegevens in, los 2FA op
 
 ## Gebruik
 
+### 0. Via Apify zoeken & scrapen (NEW)
+
+Je kan direct LinkedIn doorzoeken en alles scrapen in één commando:
+
+```bash
+python cli.py search --keywords "transport" --job-title "manager" --location "Netherlands" --limit 100 --out output/transport-managers.jsonl
+```
+
+Dit gaat:
+1. Via Apify naar LinkedIn zoeken (jouw account loopt gén risico)
+2. Alle gevonden profielen automatisch scrapen
+3. Alles als JSONL opslaan
+
+Opties:
+- `--keywords` (verplicht): zoekterm
+- `--job-title` (optioneel): filter op functietitel (bijv. "manager", "director", "CEO")
+- `--location` (optioneel): locatie-filter (bijv. "Netherlands")
+- `--limit` (default 100): max. aantal profielen
+- `--out` (verplicht): JSONL bestand
+- `--apify-token`: token (of uit `.env` via `APIFY_TOKEN`)
+
+**Waarom Apify?** Je LinkedIn-account loopt geen risico — Apify handelt alle rate-limiting/blocking af.
+
 ### 1. Losse profiel scrapen
 
 ```bash
