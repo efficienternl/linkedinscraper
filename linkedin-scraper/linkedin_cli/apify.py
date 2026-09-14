@@ -209,13 +209,34 @@ class ApifyClient:
         """Extract LinkedIn profile URLs from Apify results."""
         urls = []
 
+        # Log what we got for debugging
+        if not results:
+            click.echo(f"  [DEBUG] Empty results from Apify", err=True)
+            return urls
+
+        click.echo(f"  [DEBUG] Got {len(results)} items from Apify", err=True)
+        if results:
+            click.echo(f"  [DEBUG] First item keys: {list(results[0].keys())}", err=True)
+
         for result in results:
-            # Different results formats depending on actor
+            # Try multiple possible field names
+            profile_url = None
+
             if "profileUrl" in result:
-                urls.append(result["profileUrl"])
-            elif "url" in result and "linkedin.com/in/" in result["url"]:
-                urls.append(result["url"])
-            elif "link" in result and "linkedin.com/in/" in result["link"]:
-                urls.append(result["link"])
+                profile_url = result["profileUrl"]
+            elif "url" in result:
+                if "linkedin.com" in result["url"]:
+                    profile_url = result["url"]
+            elif "link" in result:
+                if "linkedin.com" in result["link"]:
+                    profile_url = result["link"]
+            elif "profile_url" in result:
+                profile_url = result["profile_url"]
+
+            if profile_url:
+                urls.append(profile_url)
+            else:
+                # Log unexpected format
+                click.echo(f"  [DEBUG] Unexpected result format: {list(result.keys())[:5]}", err=True)
 
         return urls
