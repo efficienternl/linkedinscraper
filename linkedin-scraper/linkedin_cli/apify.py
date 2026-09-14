@@ -52,18 +52,41 @@ class ApifyClient:
         else:
             job_titles_list = [None]
 
-        # Build search URLs for all combinations of keywords + job titles
-        search_urls = []
-        for kw in keywords_list:
-            for title in job_titles_list:
-                search_urls.append(
-                    self._build_search_url(kw, location, title, seniority, manager_type)
-                )
-
+        # Build input for LinkedIn Profile Search Scraper
+        # For each keyword, create a search with optional filters
         input_data = {
-            "searchUrls": search_urls,
-            "maxResults": min(limit, 1000),  # Apify limit per URL
+            "searchQueries": [],
+            "maxResults": min(limit, 1000),
         }
+
+        # Build search queries with seniority and job title filters
+        for kw in keywords_list:
+            # Build combined query with seniority titles
+            query_parts = [kw]
+
+            if seniority:
+                seniority_lower = seniority.lower()
+                if seniority_lower == "manager":
+                    query_parts.append('title:"manager"')
+                elif seniority_lower == "director":
+                    query_parts.append('title:("manager" OR "director" OR "hoofd" OR "eigenaar" OR "directeur")')
+                elif seniority_lower == "executive":
+                    query_parts.append('title:("ceo" OR "cto" OR "cfo" OR "coo" OR "owner" OR "eigenaar" OR "oprichter" OR "voorzitter")')
+
+            if job_title:
+                if manager_type:
+                    query_parts.append(f'title:"{manager_type}"')
+                else:
+                    query_parts.append(f'title:"{job_title}"')
+            elif manager_type:
+                query_parts.append(f'title:"{manager_type}"')
+
+            search_query = " ".join(query_parts)
+            input_data["searchQueries"].append(search_query)
+
+        # Add location filter if provided
+        if location:
+            input_data["locationFilter"] = [location]
 
         click.echo(f"🔍 Starting Apify search: {', '.join(keywords_list)}", err=True)
         if location:
