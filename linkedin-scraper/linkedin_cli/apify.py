@@ -99,15 +99,15 @@ class ApifyClient:
         """Build LinkedIn search URL with filters."""
         search_parts = [keywords]
 
-        # Add seniority levels (manager or higher)
+        # Add seniority levels (manager or higher) - includes both English & Dutch
         if seniority:
             seniority = seniority.lower()
             if seniority == "manager":
-                search_parts.append('title:"manager"')
+                search_parts.append('title:("manager" OR "manager" OR "medewerker" OR "coördinator")')
             elif seniority == "director":
-                search_parts.append('title:("manager" OR "director" OR "head of" OR "vp" OR "vice president")')
+                search_parts.append('title:("manager" OR "director" OR "head of" OR "hoofd" OR "vp" OR "vice president" OR "vicevoorzitter" OR "eigenaar" OR "owner" OR "directeur" OR "directrice")')
             elif seniority == "executive":
-                search_parts.append('title:("manager" OR "director" OR "head of" OR "vp" OR "vice president" OR "ceo" OR "cto" OR "cfo" OR "coo" OR "owner" OR "founder")')
+                search_parts.append('title:("manager" OR "director" OR "head of" OR "hoofd" OR "vp" OR "vice president" OR "vicevoorzitter" OR "ceo" OR "cto" OR "cfo" OR "coo" OR "owner" OR "eigenaar" OR "founder" OR "oprichter" OR "directeur" OR "directrice" OR "bestuursvoorzitter" OR "voorzitter")')
 
         # Add specific job title
         if job_title:
