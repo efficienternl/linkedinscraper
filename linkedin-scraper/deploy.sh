@@ -70,6 +70,12 @@ if [ -d ".git" ]; then
 else
     log_info "Cloning repository..."
     git clone -b "$BRANCH" "$REPO_URL" .
+    # If cloned into nested structure, move contents up
+    if [ -d "linkedin-scraper" ] && [ -f "linkedin-scraper/.env.example" ]; then
+        log_info "Extracting linkedin-scraper subdirectory..."
+        mv linkedin-scraper/* .
+        rm -rf linkedin-scraper
+    fi
 fi
 
 # Step 5: Setup environment file
