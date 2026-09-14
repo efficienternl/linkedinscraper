@@ -11,7 +11,7 @@ NC='\033[0m' # No Color
 # Configuration
 APP_DIR="/opt/linkedin-scraper"
 SERVICE_NAME="linkedin-scraper"
-REPO_URL="https://github.com/efficienter-hq/linkedin-scraper.git"
+REPO_URL="https://github.com/efficienternl/linkedinscraper.git"
 BRANCH="main"
 
 log_info() {
