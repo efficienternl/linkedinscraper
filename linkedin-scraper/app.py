@@ -1,6 +1,9 @@
 """Streamlit web interface for LinkedIn scraper."""
 import streamlit as st
 import os
+import subprocess
+import json
+from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -142,12 +145,34 @@ def output_file_selector(key_prefix="output"):
     return base_filename, output_format, full_path
 
 
-def show_command_preview(cmd):
-    """Display a nicely formatted command preview before execution."""
-    with st.container():
-        st.markdown("### Commando dat wordt uitgevoerd")
-        st.code(cmd, language="bash")
-        st.caption("📋 Copy & paste dit commando in je terminal")
+def run_scraper_command(cmd_args):
+    """Execute scraper command and stream output."""
+    try:
+        output_container = st.empty()
+        with output_container.container():
+            with st.spinner("🔄 Scraping in progress..."):
+                result = subprocess.run(
+                    cmd_args,
+                    cwd="/app",
+                    capture_output=True,
+                    text=True,
+                    timeout=3600
+                )
+
+        if result.returncode == 0:
+            st.success("✅ Scraping completed!")
+            if result.stdout:
+                st.code(result.stdout, language="json")
+            return True
+        else:
+            st.error(f"❌ Error: {result.stderr}")
+            return False
+    except subprocess.TimeoutExpired:
+        st.error("❌ Timeout - scraping took too long")
+        return False
+    except Exception as e:
+        st.error(f"❌ Error: {e}")
+        return False
 
 # ============================================================================
 # AUTHENTICATION CHECK - GATE THE ENTIRE APP
@@ -194,12 +219,8 @@ with tabs[0]:
 
         st.divider()
 
-        # Generate and show command preview
-        cmd = f'python cli.py person "{profile_url}" --out {output_path}'
-        show_command_preview(cmd)
-
-        if st.button("Scrape Profiel", use_container_width=True, key="person_btn", type="primary"):
-            st.success("Commando klaar! Kopieer het bovenstaande en voer uit in je terminal.")
+        if st.button("🚀 Start Scraping", use_container_width=True, key="person_btn", type="primary"):
+            run_scraper_command(["python", "cli.py", "person", profile_url, "--out", output_path])
     else:
         st.info("Voer een LinkedIn profiel URL in om te starten")
 
@@ -220,12 +241,8 @@ with tabs[1]:
 
         st.divider()
 
-        # Generate and show command preview
-        cmd = f'python cli.py company "{company_url}" --out {output_path}'
-        show_command_preview(cmd)
-
-        if st.button("Scrape Bedrijf", use_container_width=True, key="company_btn", type="primary"):
-            st.success("Commando klaar! Kopieer het bovenstaande en voer uit in je terminal.")
+        if st.button("🚀 Start Scraping", use_container_width=True, key="company_btn", type="primary"):
+            run_scraper_command(["python", "cli.py", "company", company_url, "--out", output_path])
     else:
         st.info("Voer een LinkedIn bedrijf URL in om te starten")
 
@@ -254,18 +271,19 @@ with tabs[2]:
 
         st.divider()
 
-        # Generate and show command preview
-        temp_file = "temp_urls.txt"
-        cmd = f'python cli.py people --file {temp_file} --out {output_path} --delay-min {delay_min} --delay-max {delay_max}'
-
-        show_command_preview(cmd)
-
-        if st.button("Start Bulk Scrape", use_container_width=True, key="bulk_btn", type="primary"):
+        if st.button("🚀 Start Bulk Scrape", use_container_width=True, key="bulk_btn", type="primary"):
             # Save to temp file
+            temp_file = "/tmp/temp_urls.txt"
             with open(temp_file, "w") as f:
                 f.write("\n".join(urls))
 
-            st.success("✓ Bestand opgeslagen! Kopieer het commando en voer uit in je terminal.")
+            run_scraper_command([
+                "python", "cli.py", "people",
+                "--file", temp_file,
+                "--out", output_path,
+                "--delay-min", str(delay_min),
+                "--delay-max", str(delay_max)
+            ])
 
 # TAB 4: Job Search
 with tabs[3]:
@@ -293,17 +311,13 @@ with tabs[3]:
 
         st.divider()
 
-        # Generate and show command preview
-        cmd = f'python cli.py jobs --keywords "{job_keywords}" --limit {job_limit} --out {output_path}'
-        if job_location:
-            cmd += f' --location "{job_location}"'
-
-        show_command_preview(cmd)
-
-        if st.button("Zoeken & Scrapen", use_container_width=True, key="jobs_btn", type="primary"):
-            st.success("Commando klaar! Kopieer het bovenstaande en voer uit in je terminal.")
+        if st.button("🚀 Zoeken & Scrapen", use_container_width=True, key="jobs_btn", type="primary"):
+            cmd = ["python", "cli.py", "jobs", "--keywords", job_keywords, "--limit", str(job_limit), "--out", output_path]
+            if job_location:
+                cmd.extend(["--location", job_location])
+            run_scraper_command(cmd)
     else:
-        st.info("Voer een zoekterm in om het commando te genereren")
+        st.info("Voer een zoekterm in om te starten")
 
 # TAB 5: Apify Search (MULTI-KEYWORD)
 with tabs[4]:
@@ -352,26 +366,23 @@ with tabs[4]:
 
         st.divider()
 
-        # Build command with multiple keywords
-        cmd = f'python cli.py search'
-        for kw in keywords_list:
-            cmd += f' --keywords "{kw}"'
+        if st.button("🚀 Zoeken & Scrapen", use_container_width=True, key="search_btn", type="primary"):
+            # Build command with multiple keywords
+            cmd = ["python", "cli.py", "search", "--limit", str(search_limit), "--out", output_path]
 
-        cmd += f' --limit {search_limit} --out {output_path}'
+            for kw in keywords_list:
+                cmd.extend(["--keywords", kw])
 
-        if search_seniority:
-            cmd += f' --seniority {search_seniority}'
-        if search_manager_type:
-            cmd += f' --manager-type "{search_manager_type}"'
-        if search_location:
-            cmd += f' --location "{search_location}"'
+            if search_seniority:
+                cmd.extend(["--seniority", search_seniority])
+            if search_manager_type:
+                cmd.extend(["--manager-type", search_manager_type])
+            if search_location:
+                cmd.extend(["--location", search_location])
 
-        show_command_preview(cmd)
-
-        if st.button("Zoeken & Scrapen", use_container_width=True, key="search_btn", type="primary"):
-            st.success("Commando klaar! Kopieer het bovenstaande en voer uit in je terminal.")
+            run_scraper_command(cmd)
     else:
-        st.info("Voer minstens één zoekterm in om het commando te genereren")
+        st.info("Voer minstens één zoekterm in om te starten")
 
 # Footer
 st.divider()
