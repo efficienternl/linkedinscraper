@@ -65,35 +65,32 @@ class ApifyClient:
         # Collect all profiles from all keyword searches
         all_profiles = []
 
-        # Search for each keyword
+        # Search for each keyword (SIMPLE: just searchQuery, no extra filters)
         for kw in keywords_list:
-            # Build input data for this search
-            input_data = {
-                "searchQuery": kw,
-                "maxResults": min(limit, 1000),
-            }
+            # Build search query combining keyword with seniority/location/title inline
+            query_parts = [kw]
 
-            # Add seniority level filter (use exact Apify values)
             if seniority:
-                seniority_lower = seniority.lower()
-                if seniority_lower == "manager":
-                    input_data["seniorityLevelFilter"] = ["Entry Level Manager", "Experienced Manager"]
-                elif seniority_lower == "director":
-                    input_data["seniorityLevelFilter"] = ["Director", "Vice President"]
-                elif seniority_lower == "executive":
-                    input_data["seniorityLevelFilter"] = ["CXO", "Owner / Partner"]
+                s_lower = seniority.lower()
+                if s_lower == "manager":
+                    query_parts.append("(manager OR medewerker)")
+                elif s_lower == "director":
+                    query_parts.append("(director OR eigenaar OR owner OR directeur)")
+                elif s_lower == "executive":
+                    query_parts.append("(ceo OR cxo OR owner OR founder)")
 
-            # Add job title filter
-            if job_title:
-                input_data["currentJobTitleFilter"] = [job_title]
-            elif manager_type:
-                input_data["currentJobTitleFilter"] = [manager_type]
+            if manager_type:
+                query_parts.append(manager_type)
 
-            # Add location filter
             if location:
-                input_data["locationFilter"] = [location]
+                query_parts.append(location)
 
-            click.echo(f"  🔎 Searching: {kw}", err=True)
+            search_query = " ".join(query_parts)
+
+            # MINIMAL input: just searchQuery
+            input_data = {"searchQuery": search_query}
+
+            click.echo(f"  🔎 Searching: {search_query[:60]}", err=True)
 
             # Call actor for this keyword
             run_id = self._run_actor(self.actor_id, input_data)
@@ -206,37 +203,30 @@ class ApifyClient:
             raise Exception(f"Failed to fetch dataset: {e}")
 
     def _extract_urls(self, results: list) -> list:
-        """Extract LinkedIn profile URLs from Apify results."""
+        """Extract LinkedIn profile URLs from Apify results - handle empty datasets."""
         urls = []
 
-        # Log what we got for debugging
         if not results:
-            click.echo(f"  [DEBUG] Empty results from Apify", err=True)
             return urls
 
-        click.echo(f"  [DEBUG] Got {len(results)} items from Apify", err=True)
-        if results:
-            click.echo(f"  [DEBUG] First item keys: {list(results[0].keys())}", err=True)
-
         for result in results:
-            # Try multiple possible field names
             profile_url = None
 
-            if "profileUrl" in result:
-                profile_url = result["profileUrl"]
-            elif "url" in result:
-                if "linkedin.com" in result["url"]:
+            # Handle both dict and string results
+            if isinstance(result, str):
+                if "linkedin.com" in result:
+                    profile_url = result
+            elif isinstance(result, dict):
+                if "profileUrl" in result:
+                    profile_url = result["profileUrl"]
+                elif "profile_url" in result:
+                    profile_url = result["profile_url"]
+                elif "url" in result and "linkedin.com" in str(result.get("url", "")):
                     profile_url = result["url"]
-            elif "link" in result:
-                if "linkedin.com" in result["link"]:
+                elif "link" in result and "linkedin.com" in str(result.get("link", "")):
                     profile_url = result["link"]
-            elif "profile_url" in result:
-                profile_url = result["profile_url"]
 
             if profile_url:
                 urls.append(profile_url)
-            else:
-                # Log unexpected format
-                click.echo(f"  [DEBUG] Unexpected result format: {list(result.keys())[:5]}", err=True)
 
         return urls
