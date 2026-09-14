@@ -73,15 +73,15 @@ class ApifyClient:
                 "maxResults": min(limit, 1000),
             }
 
-            # Add seniority level filter
+            # Add seniority level filter (use exact Apify values)
             if seniority:
                 seniority_lower = seniority.lower()
                 if seniority_lower == "manager":
-                    input_data["seniorityLevelFilter"] = ["Manager"]
+                    input_data["seniorityLevelFilter"] = ["Entry Level Manager", "Experienced Manager"]
                 elif seniority_lower == "director":
-                    input_data["seniorityLevelFilter"] = ["Manager", "Director"]
+                    input_data["seniorityLevelFilter"] = ["Director", "Vice President"]
                 elif seniority_lower == "executive":
-                    input_data["seniorityLevelFilter"] = ["Executive", "C-suite"]
+                    input_data["seniorityLevelFilter"] = ["CXO", "Owner / Partner"]
 
             # Add job title filter
             if job_title:
