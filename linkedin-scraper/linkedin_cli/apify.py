@@ -2,6 +2,7 @@
 import time
 import requests
 import click
+import os
 
 
 class ApifyClient:
@@ -10,6 +11,8 @@ class ApifyClient:
     def __init__(self, api_token: str):
         self.api_token = api_token
         self.base_url = "https://api.apify.com/v2"
+        # Get actor ID from env or use default
+        self.actor_id = os.getenv("APIFY_ACTOR_ID", "nwua9Oy5YrADL7ZAj")
 
     def search_profiles(
         self,
@@ -49,9 +52,6 @@ class ApifyClient:
         else:
             job_titles_list = [None]
 
-        # Use the LinkedIn Search Results Scraper actor
-        actor_id = "nwua9Oy5YrADL7ZAj"  # LinkedIn Search Results Scraper
-
         # Build search URLs for all combinations of keywords + job titles
         search_urls = []
         for kw in keywords_list:
@@ -75,8 +75,8 @@ class ApifyClient:
         if manager_type:
             click.echo(f"   Manager type: {manager_type}", err=True)
 
-        # Call actor
-        run_id = self._run_actor(actor_id, input_data)
+        # Call actor (uses self.actor_id from env or default)
+        run_id = self._run_actor(self.actor_id, input_data)
 
         # Wait for completion
         click.echo(f"⏳ Waiting for Apify to finish (run: {run_id})...", err=True)
