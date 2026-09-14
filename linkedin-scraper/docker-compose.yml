@@ -17,12 +17,12 @@ services:
     env_file:
       - .env
     volumes:
-      - ./app.py:/app/app.py:ro
-      - ./cli.py:/app/cli.py:ro
-      - ./linkedin_cli:/app/linkedin_cli:ro
+      - ./app.py:/app/app.py
+      - ./cli.py:/app/cli.py
+      - ./linkedin_cli:/app/linkedin_cli
       - ./output:/app/output
       - ./data:/app/data
-      - ./.env:/app/.env:ro
+      - ./.env:/app/.env
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8501/health"]
