@@ -1,0 +1,38 @@
+[Unit]
+Description=LinkedIn Scraper - Streamlit + Nginx
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/linkedin-scraper
+
+# Load environment from .env
+EnvironmentFile=/opt/linkedin-scraper/.env
+
+# Pre-start: pull latest code and rebuild
+ExecStartPre=/bin/bash -c 'cd /opt/linkedin-scraper && git fetch origin && git reset --hard origin/main'
+ExecStartPre=/bin/bash -c 'cd /opt/linkedin-scraper && docker-compose build'
+
+# Start service
+ExecStart=/usr/bin/docker-compose -f /opt/linkedin-scraper/docker-compose.yml up
+
+# Stop service
+ExecStop=/usr/bin/docker-compose -f /opt/linkedin-scraper/docker-compose.yml down
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+
+# Security
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

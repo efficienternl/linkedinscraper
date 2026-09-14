@@ -4,5 +4,24 @@ __pycache__/
 *.pyo
 *.egg-info/
 .env
+.env.local
 session.json
 output/
+data/
+
+# Deployment
+certs/
+*.pem
+*.key
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+
+# Docker
+.docker/
