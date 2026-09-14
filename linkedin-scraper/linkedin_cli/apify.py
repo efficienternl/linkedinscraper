@@ -52,42 +52,6 @@ class ApifyClient:
         else:
             job_titles_list = [None]
 
-        # Build input for LinkedIn Profile Search Scraper
-        # For each keyword, create a search with optional filters
-        input_data = {
-            "searchQueries": [],
-            "maxResults": min(limit, 1000),
-        }
-
-        # Build search queries with seniority and job title filters
-        for kw in keywords_list:
-            # Build combined query with seniority titles
-            query_parts = [kw]
-
-            if seniority:
-                seniority_lower = seniority.lower()
-                if seniority_lower == "manager":
-                    query_parts.append('title:"manager"')
-                elif seniority_lower == "director":
-                    query_parts.append('title:("manager" OR "director" OR "hoofd" OR "eigenaar" OR "directeur")')
-                elif seniority_lower == "executive":
-                    query_parts.append('title:("ceo" OR "cto" OR "cfo" OR "coo" OR "owner" OR "eigenaar" OR "oprichter" OR "voorzitter")')
-
-            if job_title:
-                if manager_type:
-                    query_parts.append(f'title:"{manager_type}"')
-                else:
-                    query_parts.append(f'title:"{job_title}"')
-            elif manager_type:
-                query_parts.append(f'title:"{manager_type}"')
-
-            search_query = " ".join(query_parts)
-            input_data["searchQueries"].append(search_query)
-
-        # Add location filter if provided
-        if location:
-            input_data["locationFilter"] = [location]
-
         click.echo(f"🔍 Starting Apify search: {', '.join(keywords_list)}", err=True)
         if location:
             click.echo(f"   Location: {location}", err=True)
@@ -98,16 +62,53 @@ class ApifyClient:
         if manager_type:
             click.echo(f"   Manager type: {manager_type}", err=True)
 
-        # Call actor (uses self.actor_id from env or default)
-        run_id = self._run_actor(self.actor_id, input_data)
+        # Collect all profiles from all keyword searches
+        all_profiles = []
 
-        # Wait for completion
-        click.echo(f"⏳ Waiting for Apify to finish (run: {run_id})...", err=True)
-        results = self._wait_for_results(run_id)
+        # Search for each keyword
+        for kw in keywords_list:
+            # Build input data for this search
+            input_data = {
+                "searchQuery": kw,
+                "maxResults": min(limit, 1000),
+            }
 
-        # Extract profile URLs
-        profile_urls = self._extract_urls(results)
-        click.echo(f"✓ Found {len(profile_urls)} profiles", err=True)
+            # Add seniority level filter
+            if seniority:
+                seniority_lower = seniority.lower()
+                if seniority_lower == "manager":
+                    input_data["seniorityLevelFilter"] = ["Manager"]
+                elif seniority_lower == "director":
+                    input_data["seniorityLevelFilter"] = ["Manager", "Director"]
+                elif seniority_lower == "executive":
+                    input_data["seniorityLevelFilter"] = ["Executive", "C-suite"]
+
+            # Add job title filter
+            if job_title:
+                input_data["currentJobTitleFilter"] = [job_title]
+            elif manager_type:
+                input_data["currentJobTitleFilter"] = [manager_type]
+
+            # Add location filter
+            if location:
+                input_data["locationFilter"] = [location]
+
+            click.echo(f"  🔎 Searching: {kw}", err=True)
+
+            # Call actor for this keyword
+            run_id = self._run_actor(self.actor_id, input_data)
+
+            # Wait for completion
+            click.echo(f"  ⏳ Waiting (run: {run_id})...", err=True)
+            results = self._wait_for_results(run_id)
+
+            # Extract URLs for this search
+            urls = self._extract_urls(results)
+            click.echo(f"  ✓ Found {len(urls)}", err=True)
+            all_profiles.extend(urls)
+
+        profile_urls = all_profiles
+        click.echo(f"✓ Total found: {len(profile_urls)} profiles", err=True)
 
         return profile_urls
 
